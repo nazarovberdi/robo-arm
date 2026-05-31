@@ -1,0 +1,255 @@
+import { useMemo, useRef } from 'react'
+import { useFrame } from '@react-three/fiber'
+import * as THREE from 'three'
+import { ARM, HALF_PI, RAIL, rig } from './config'
+import { telemetry } from './telemetry'
+import {
+  type ArmPose,
+  type Waypoint,
+  buildPickWaypoints,
+  buildPlaceWaypoints,
+  idlePose,
+  lerpPose,
+  smoothstep,
+} from './motion'
+import { useStore } from '../store'
+import { SHAPES, slotPosition, binPosition } from '../data/objects'
+
+interface SeqState {
+  wps: Waypoint[]
+  startPose: ArmPose
+  startGrip: number
+  idx: number
+  t: number
+  kind: 'pick' | 'place'
+}
+
+const pedH = ARM.shoulderH - (RAIL.y + ARM.carriageH)
+
+export function RobotArm() {
+  // joint refs
+  const carriage = useRef<THREE.Group>(null!)
+  const base = useRef<THREE.Group>(null!)
+  const shoulder = useRef<THREE.Group>(null!)
+  const elbow = useRef<THREE.Group>(null!)
+  const wrist = useRef<THREE.Group>(null!)
+  const fingerL = useRef<THREE.Group>(null!)
+  const fingerR = useRef<THREE.Group>(null!)
+  const tip = useRef<THREE.Object3D>(null!)
+
+  // playback state (non-reactive)
+  const displayed = useRef<ArmPose>(idlePose())
+  const grip = useRef(1)
+  const seqRef = useRef<SeqState | null>(null)
+  const lastMode = useRef<string>('init')
+  const cycleStart = useRef(0)
+
+  const mats = useMemo(() => {
+    return {
+      body: new THREE.MeshStandardMaterial({ color: '#d3d6db', metalness: 0.55, roughness: 0.38 }),
+      bodyDark: new THREE.MeshStandardMaterial({ color: '#9aa0a8', metalness: 0.6, roughness: 0.42 }),
+      ring: new THREE.MeshStandardMaterial({ color: '#dd8a2e', metalness: 0.5, roughness: 0.4, emissive: '#5a3206', emissiveIntensity: 0.4 }),
+      joint: new THREE.MeshStandardMaterial({ color: '#2c3037', metalness: 0.7, roughness: 0.35 }),
+      finger: new THREE.MeshStandardMaterial({ color: '#23262c', metalness: 0.6, roughness: 0.4 }),
+    }
+  }, [])
+
+  useFrame((_, dtRaw) => {
+    const dt = Math.min(dtRaw, 0.05)
+    const st = useStore.getState()
+
+    // ---- MANUAL MODE ----
+    if (st.manualMode) {
+      const m = st.manual
+      const target: ArmPose = { railX: m.railX, base: m.base, shoulder: m.shoulder, elbow: m.elbow, wrist: m.wrist }
+      const k = Math.min(1, dt * 6)
+      displayed.current = lerpPose(displayed.current, target, k)
+      grip.current += (m.gripper - grip.current) * k
+      seqRef.current = null
+      lastMode.current = 'manual'
+      apply()
+      return
+    }
+
+    // ---- start sequences on mode change ----
+    if (st.mode === 'picking' && lastMode.current !== 'picking') {
+      const sd = SHAPES.find((s) => s.id === st.selectedId)
+      if (sd) {
+        const o = slotPosition(sd.slotIndex, sd.centerY)
+        seqRef.current = { wps: buildPickWaypoints(o), startPose: { ...displayed.current }, startGrip: grip.current, idx: 0, t: 0, kind: 'pick' }
+        cycleStart.current = performance.now()
+      }
+    } else if (st.mode === 'placing' && lastMode.current !== 'placing') {
+      const sd = SHAPES.find((s) => s.id === st.selectedId)
+      if (sd) {
+        const o = slotPosition(sd.slotIndex, sd.centerY)
+        const b = binPosition(sd.slotIndex)
+        seqRef.current = { wps: buildPlaceWaypoints(o, b), startPose: { ...displayed.current }, startGrip: grip.current, idx: 0, t: 0, kind: 'place' }
+      }
+    }
+    lastMode.current = st.mode
+
+    // ---- advance active sequence ----
+    const seq = seqRef.current
+    if (seq) {
+      const wp = seq.wps[seq.idx]
+      const factor = st.speedPct / 60
+      seq.t += (dt * factor) / wp.dur
+      if (seq.t >= 1) {
+        seq.t = 0
+        const finished = seq.idx
+        // boundary events
+        if (seq.kind === 'pick' && finished === 2) rig.heldObjectId = st.selectedId
+        if (seq.kind === 'place' && finished === 2) {
+          useStore.getState().onRelease()
+          rig.heldObjectId = null
+        }
+        seq.idx++
+        if (seq.idx >= seq.wps.length) {
+          displayed.current = { ...wp.pose }
+          grip.current = wp.gripper
+          if (seq.kind === 'pick') useStore.getState().onPickComplete()
+          else useStore.getState().onPlaceComplete()
+          seqRef.current = null
+        }
+      }
+    }
+
+    // ---- interpolate ----
+    const active = seqRef.current
+    if (active) {
+      const wp = active.wps[active.idx]
+      const from = active.idx === 0 ? active.startPose : active.wps[active.idx - 1].pose
+      const fromG = active.idx === 0 ? active.startGrip : active.wps[active.idx - 1].gripper
+      const e = smoothstep(active.t)
+      displayed.current = lerpPose(from, wp.pose, e)
+      grip.current = fromG + (wp.gripper - fromG) * e
+      telemetry.cycleMs = performance.now() - cycleStart.current
+    } else if (st.mode === 'idle') {
+      const k = Math.min(1, dt * 2.5)
+      displayed.current = lerpPose(displayed.current, idlePose(), k)
+      grip.current += (1 - grip.current) * k
+    } else if (st.mode === 'holding') {
+      telemetry.cycleMs = performance.now() - cycleStart.current
+    }
+
+    apply()
+  })
+
+  function apply() {
+    const p = displayed.current
+    carriage.current.position.x = p.railX
+    base.current.rotation.y = p.base
+    shoulder.current.rotation.x = p.shoulder
+    elbow.current.rotation.x = p.elbow
+    wrist.current.rotation.x = p.wrist
+
+    const gap = 0.055 + 0.14 * grip.current
+    fingerL.current.position.x = -gap
+    fingerR.current.position.x = gap
+
+    // gripper tip world position for the held object to follow
+    tip.current.updateWorldMatrix(true, false)
+    tip.current.getWorldPosition(rig.gripperTip)
+
+    // telemetry
+    telemetry.base = p.base
+    telemetry.shoulder = p.shoulder
+    telemetry.elbow = p.elbow
+    telemetry.wrist = p.wrist
+    telemetry.railX = p.railX
+    telemetry.gripper = grip.current
+  }
+
+  return (
+    <group>
+      {/* carriage rides the rail along X */}
+      <group ref={carriage} position={[0, RAIL.y, 0]}>
+        {/* carriage block */}
+        <mesh position={[0, ARM.carriageH / 2, 0]} castShadow receiveShadow material={mats.joint}>
+          <boxGeometry args={[0.95, ARM.carriageH, 1.0]} />
+        </mesh>
+        {/* wheels (visual) */}
+        {[-0.4, 0.4].map((z) =>
+          [-0.42, 0.42].map((x) => (
+            <mesh key={`${x}_${z}`} position={[x, 0.06, z]} rotation={[0, 0, HALF_PI]} material={mats.bodyDark} castShadow>
+              <cylinderGeometry args={[0.1, 0.1, 0.12, 20]} />
+            </mesh>
+          )),
+        )}
+
+        {/* rotating base */}
+        <group ref={base} position={[0, ARM.carriageH, 0]}>
+          {/* glowing accent ring under base */}
+          <mesh position={[0, 0.02, 0]} rotation={[-HALF_PI, 0, 0]}>
+            <ringGeometry args={[0.34, 0.46, 48]} />
+            <meshBasicMaterial color="#2b7fff" transparent opacity={0.7} side={THREE.DoubleSide} />
+          </mesh>
+          {/* pedestal */}
+          <mesh position={[0, pedH / 2, 0]} castShadow receiveShadow material={mats.body}>
+            <cylinderGeometry args={[0.3, 0.36, pedH, 36]} />
+          </mesh>
+
+          {/* shoulder pitch */}
+          <group ref={shoulder} position={[0, pedH, 0]}>
+            <Knuckle mats={mats} />
+            {/* upper arm */}
+            <mesh position={[0, ARM.L1 / 2, 0]} castShadow receiveShadow material={mats.body}>
+              <capsuleGeometry args={[0.16, ARM.L1 - 0.32, 8, 20]} />
+            </mesh>
+            <AccentRing y={ARM.L1 * 0.32} mats={mats} />
+
+            {/* elbow pitch */}
+            <group ref={elbow} position={[0, ARM.L1, 0]}>
+              <Knuckle mats={mats} />
+              {/* forearm */}
+              <mesh position={[0, ARM.L2 / 2, 0]} castShadow receiveShadow material={mats.body}>
+                <capsuleGeometry args={[0.14, ARM.L2 - 0.28, 8, 20]} />
+              </mesh>
+              <AccentRing y={ARM.L2 * 0.34} mats={mats} />
+
+              {/* wrist pitch */}
+              <group ref={wrist} position={[0, ARM.L2, 0]}>
+                <Knuckle mats={mats} small />
+                {/* gripper base */}
+                <mesh position={[0, 0.1, 0]} castShadow material={mats.joint}>
+                  <boxGeometry args={[0.26, 0.12, 0.2]} />
+                </mesh>
+                {/* fingers extend +Y (point down once wrist orients gripper) */}
+                <group ref={fingerL} position={[-0.12, 0.16, 0]}>
+                  <mesh position={[0, ARM.gripLen / 2, 0]} castShadow material={mats.finger}>
+                    <boxGeometry args={[0.06, ARM.gripLen, 0.16]} />
+                  </mesh>
+                </group>
+                <group ref={fingerR} position={[0.12, 0.16, 0]}>
+                  <mesh position={[0, ARM.gripLen / 2, 0]} castShadow material={mats.finger}>
+                    <boxGeometry args={[0.06, ARM.gripLen, 0.16]} />
+                  </mesh>
+                </group>
+                {/* tip marker */}
+                <object3D ref={tip} position={[0, ARM.gripLen + 0.16, 0]} />
+              </group>
+            </group>
+          </group>
+        </group>
+      </group>
+    </group>
+  )
+}
+
+function Knuckle({ mats, small }: { mats: { joint: THREE.Material }; small?: boolean }) {
+  const r = small ? 0.16 : 0.2
+  return (
+    <mesh rotation={[0, 0, HALF_PI]} castShadow material={mats.joint}>
+      <cylinderGeometry args={[r, r, 0.44, 28]} />
+    </mesh>
+  )
+}
+
+function AccentRing({ y, mats }: { y: number; mats: { ring: THREE.Material } }) {
+  return (
+    <mesh position={[0, y, 0]} material={mats.ring} castShadow>
+      <cylinderGeometry args={[0.175, 0.175, 0.1, 28]} />
+    </mesh>
+  )
+}
