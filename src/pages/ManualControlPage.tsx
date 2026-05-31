@@ -18,7 +18,7 @@ interface JointCfg {
 const JOINTS: JointCfg[] = [
   { key: 'base', label: 'Base (yaw)', min: -180, max: 180, unit: 'deg' },
   { key: 'shoulder', label: 'Shoulder', min: -90, max: 180, unit: 'deg' },
-  { key: 'elbow', label: 'Elbow', min: -170, max: 20, unit: 'deg' },
+  { key: 'elbow', label: 'Elbow', min: -170, max: 90, unit: 'deg' },
   { key: 'wrist', label: 'Wrist', min: -90, max: 180, unit: 'deg' },
   { key: 'railX', label: 'Rail position', min: RAIL.xMin, max: RAIL.xMax, unit: 'm' },
 ]
