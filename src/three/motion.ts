@@ -101,17 +101,27 @@ export function buildPickWaypoints(o: THREE.Vector3): Waypoint[] {
   ]
 }
 
-/** Place: raise -> sweep over bin -> descend -> release (detach) -> retract. */
+/**
+ * Place: raise -> sweep over bin -> descend -> release (detach at idx 2 boundary)
+ * -> lift straight up out of the bin (so retracting fingers don't knock the
+ * just-dropped object) -> retract to idle.
+ */
 export function buildPlaceWaypoints(o: THREE.Vector3, b: THREE.Vector3): Waypoint[] {
   return [
     { pose: solveArm(o.x, 1.75, o.z), gripper: 0, dur: 0.5 },
     { pose: solveArm(b.x, 1.75, b.z), gripper: 0, dur: 1.15 }, // base sweeps, carriage slides
     { pose: solveArm(b.x, b.y + 0.55, b.z), gripper: 0, dur: 0.55 },
-    { pose: solveArm(b.x, b.y + 0.55, b.z), gripper: 1, dur: 0.45 }, // detach at start
+    { pose: solveArm(b.x, b.y + 0.55, b.z), gripper: 1, dur: 0.45 }, // open + detach
+    { pose: solveArm(b.x, 1.75, b.z), gripper: 1, dur: 0.5 }, // lift straight up, clear the bin
     { pose: idlePose(), gripper: 1, dur: 0.85 },
   ]
 }
 
 export function idlePose(): ArmPose {
   return solveArm(0, 1.7, 1.0)
+}
+
+// Dev-only expose for verification
+if (import.meta.env.DEV) {
+  ;(window as unknown as { __solveArm: typeof solveArm }).__solveArm = solveArm
 }

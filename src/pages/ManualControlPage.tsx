@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { useStore, type ManualTargets } from '../store'
 import { Scene } from '../three/Scene'
+import { GripChip } from '../components/GripChip'
 import { RAIL } from '../three/config'
 import { RAD2DEG } from '../three/telemetry'
 
@@ -39,9 +40,12 @@ export function ManualControlPage() {
           <h1>Manual Control</h1>
           <p>Drive each joint, the rail, and the gripper directly. The arm follows in real time.</p>
         </div>
-        <div className="status-chip">
-          MODE
-          <span className="dot">Manual</span>
+        <div className="chips">
+          <GripChip />
+          <div className="status-chip">
+            MODE
+            <span className="dot">Manual</span>
+          </div>
         </div>
       </div>
 

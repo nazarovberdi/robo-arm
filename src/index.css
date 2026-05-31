@@ -239,6 +239,26 @@ body {
   box-shadow: 0 0 10px var(--green);
 }
 
+.chips {
+  display: flex;
+  gap: 12px;
+  align-items: stretch;
+}
+/* grip chip supplies its own colored dot via <i>, so suppress the green ::before */
+.grip-chip .dot::before {
+  display: none;
+}
+.grip-chip .dot {
+  font-weight: 600;
+}
+.grip-chip .dot i {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  display: inline-block;
+  transition: background 0.2s, box-shadow 0.2s;
+}
+
 /* telemetry cards */
 .telemetry {
   display: grid;

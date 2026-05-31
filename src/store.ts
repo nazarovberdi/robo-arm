@@ -31,6 +31,12 @@ interface AppState {
   rejectBinId: string | null
   rejectNonce: number
 
+  // bumped on reset so physics bodies re-place themselves
+  resetNonce: number
+
+  // id of the object currently gripped (drives its RigidBody type)
+  heldId: string | null
+
   // manual control
   manualMode: boolean
   manual: ManualTargets
@@ -44,6 +50,7 @@ interface AppState {
   setManual: (patch: Partial<ManualTargets>) => void
 
   // --- actions (arm controller callbacks) ---
+  setHeld: (id: string | null) => void
   onPickComplete: () => void
   onRelease: () => void
   onPlaceComplete: () => void
@@ -64,6 +71,8 @@ export const useStore = create<AppState>((set, get) => ({
 
   rejectBinId: null,
   rejectNonce: 0,
+  resetNonce: 0,
+  heldId: null,
 
   manualMode: false,
   manual: { base: 0, shoulder: 0.6, elbow: -1.1, wrist: 0.5, railX: 0, gripper: 1 },
@@ -91,17 +100,21 @@ export const useStore = create<AppState>((set, get) => ({
   setSpeed: (pct) => set({ speedPct: Math.max(10, Math.min(100, pct)) }),
 
   resetWorkspace: () =>
-    set({
+    set((s) => ({
       objects: initialObjects(),
       mode: 'idle',
       selectedId: null,
       targetBinId: null,
       completed: 0,
       rejectBinId: null,
-    }),
+      resetNonce: s.resetNonce + 1,
+      heldId: null,
+    })),
 
   setManualMode: (on) => set({ manualMode: on }),
   setManual: (patch) => set((st) => ({ manual: { ...st.manual, ...patch } })),
+
+  setHeld: (id) => set({ heldId: id }),
 
   onPickComplete: () => set({ mode: 'holding' }),
 

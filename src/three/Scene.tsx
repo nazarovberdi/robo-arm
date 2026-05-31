@@ -1,5 +1,6 @@
 import { Canvas } from '@react-three/fiber'
 import { OrbitControls, Grid, Environment, ContactShadows } from '@react-three/drei'
+import { Physics, RigidBody, CuboidCollider } from '@react-three/rapier'
 import * as THREE from 'three'
 import { RobotArm } from './RobotArm'
 import { Workspace } from './Workspace'
@@ -35,8 +36,14 @@ export function Scene() {
       <pointLight position={[-6, 4, -5]} intensity={40} color="#3b82f6" distance={25} />
       <Environment preset="warehouse" environmentIntensity={0.25} />
 
-      <RobotArm />
-      <Workspace />
+      <Physics gravity={[0, -9.81, 0]}>
+        <RobotArm />
+        <Workspace />
+        {/* invisible ground collider (objects rest on trays, not here) */}
+        <RigidBody type="fixed" colliders={false}>
+          <CuboidCollider args={[30, 0.05, 30]} position={[0, -0.13, 0]} />
+        </RigidBody>
+      </Physics>
 
       {/* dark floor + blue grid */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.08, 0]} receiveShadow>

@@ -1,6 +1,7 @@
 import { useStore } from '../store'
 import { Scene } from '../three/Scene'
 import { TelemetryCards } from '../components/TelemetryCards'
+import { GripChip } from '../components/GripChip'
 import { IconInfo } from '../components/icons'
 
 export function DashboardPage() {
@@ -19,9 +20,12 @@ export function DashboardPage() {
           <h1>Workspace</h1>
           <p>Pick an object from the front row and place it in the matching container.</p>
         </div>
-        <div className="status-chip">
-          ROBOT STATUS
-          <span className="dot">Active</span>
+        <div className="chips">
+          <GripChip />
+          <div className="status-chip">
+            ROBOT STATUS
+            <span className="dot">Active</span>
+          </div>
         </div>
       </div>
 

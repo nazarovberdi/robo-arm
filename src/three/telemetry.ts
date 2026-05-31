@@ -10,4 +10,14 @@ export const telemetry = {
   cycleMs: 0, // current cycle elapsed (ms), 0 when idle
 }
 
+// Grip-readiness state for the top-right chip (read imperatively by GripChip).
+export type GripState = 'none' | 'align' | 'ready' | 'gripping'
+export const grip = { state: 'none' as GripState }
+
+// Dev-only: expose live channels for automated verification.
+if (import.meta.env.DEV) {
+  ;(window as unknown as { __telemetry: typeof telemetry; __grip: typeof grip }).__telemetry = telemetry
+  ;(window as unknown as { __grip: typeof grip }).__grip = grip
+}
+
 export const RAD2DEG = 180 / Math.PI

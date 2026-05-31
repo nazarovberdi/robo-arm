@@ -31,6 +31,10 @@ export const ARM = {
 
 export const HALF_PI = Math.PI / 2
 
+// Rapier RigidBodyType numeric values (stable): Dynamic=0, Fixed=1,
+// KinematicPositionBased=2, KinematicVelocityBased=3.
+export const RB = { DYNAMIC: 0, FIXED: 1, KINEMATIC_POS: 2 } as const
+
 // Colors per shape (match dashboard accents)
 export const SHAPE_COLORS = {
   cube: '#3b82f6',
@@ -41,9 +45,35 @@ export const SHAPE_COLORS = {
   hexagon: '#14b8a6',
 } as const
 
+import type { RapierRigidBody } from '@react-three/rapier'
+
+export interface FingerContact {
+  L: boolean
+  R: boolean
+}
+
 // Shared mutable rig channel for per-frame comms (NOT React state).
-// RobotArm writes gripperTip each frame; the held object reads it.
 export const rig = {
+  // world position of the gripper grasp point (between the finger pads)
+  graspPoint: new THREE.Vector3(),
+  // legacy alias kept for any readers; now equals graspPoint
   gripperTip: new THREE.Vector3(),
+
   heldObjectId: null as string | null,
+
+  // dynamic object rigid bodies, registered on mount, for proximity queries
+  objectBodies: {} as Record<string, RapierRigidBody | null>,
+  // per-object finger contact flags, written by collision events
+  contacts: {} as Record<string, FingerContact>,
+  // object currently graspable (both fingers in contact); null otherwise
+  candidateId: null as string | null,
+}
+
+export function fingerContact(id: string): FingerContact {
+  return (rig.contacts[id] ??= { L: false, R: false })
+}
+
+// Dev-only expose for verification
+if (import.meta.env.DEV) {
+  ;(window as unknown as { __rig: typeof rig }).__rig = rig
 }
