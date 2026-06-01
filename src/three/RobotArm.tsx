@@ -9,6 +9,7 @@ import {
   type Waypoint,
   buildPickWaypoints,
   buildPlaceWaypoints,
+  groundGuard,
   idlePose,
   lerpPose,
   smoothstep,
@@ -125,7 +126,7 @@ export function RobotArm() {
 
     if (st.manualMode) {
       const m = st.manual
-      const target: ArmPose = { railX: m.railX, base: m.base, shoulder: m.shoulder, elbow: m.elbow, wrist: m.wrist }
+      const target = groundGuard({ railX: m.railX, base: m.base, shoulder: m.shoulder, elbow: m.elbow, wrist: m.wrist })
       const k = Math.min(1, dt * 6)
       displayed.current = lerpPose(displayed.current, target, k)
       grip.current += (m.gripper - grip.current) * k

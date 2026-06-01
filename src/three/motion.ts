@@ -121,6 +121,36 @@ export function idlePose(): ArmPose {
   return solveArm(0, 1.7, 1.0)
 }
 
+// ---- Ground guard (manual mode) ----
+// The arm is kinematic (no collider), so manual joint angles can drive links
+// through the floor. The height of each joint depends only on the cumulative
+// pitch (rotations are about X): elbow = shoulderH + L1·cos(sh), etc. We keep
+// each point above a per-joint clearance; if violated, we rotate the whole arm
+// upright (reduce shoulder) — since elbow/wrist are relative, the chain lifts
+// rigidly and this always converges.
+const CLEAR_ELBOW = 0.2 // knuckle radius
+const CLEAR_WRIST = 0.18
+const CLEAR_TIP = 0.04
+
+function groundViolation(p: ArmPose): number {
+  const { L1, L2, shoulderH, gripLen } = ARM
+  const elbowY = shoulderH + L1 * Math.cos(p.shoulder)
+  const wristY = elbowY + L2 * Math.cos(p.shoulder + p.elbow)
+  const tipY = wristY + (gripLen + 0.16) * Math.cos(p.shoulder + p.elbow + p.wrist)
+  return Math.max(0, CLEAR_ELBOW - elbowY, CLEAR_WRIST - wristY, CLEAR_TIP - tipY)
+}
+
+/** Clamp a manual pose so no part of the arm sinks below the floor. */
+export function groundGuard(p: ArmPose): ArmPose {
+  if (groundViolation(p) <= 0) return p
+  const out = { ...p }
+  const step = 1 * (Math.PI / 180)
+  for (let i = 0; i < 200 && groundViolation(out) > 0 && out.shoulder > -HALF_PI; i++) {
+    out.shoulder -= step
+  }
+  return out
+}
+
 // Dev-only expose for verification
 if (import.meta.env.DEV) {
   ;(window as unknown as { __solveArm: typeof solveArm }).__solveArm = solveArm
