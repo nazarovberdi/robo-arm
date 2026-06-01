@@ -130,6 +130,7 @@ function TrayObject({ def }: { def: ShapeDef }) {
       restitution={0.05}
       linearDamping={0.4}
       angularDamping={0.6}
+      ccd
     >
       {!isHull && <ShapeCollider kind={def.kind} />}
       <mesh

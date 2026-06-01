@@ -16,11 +16,11 @@ export function Scene() {
         document.body.style.cursor = 'auto'
       }}
     >
-      <color attach="background" args={['#0a0d12']} />
-      <fog attach="fog" args={['#0a0d12', 14, 30]} />
+      <color attach="background" args={['#161c25']} />
+      <fog attach="fog" args={['#161c25', 16, 34]} />
 
       {/* lighting */}
-      <ambientLight intensity={0.35} />
+      <ambientLight intensity={0.55} />
       <directionalLight
         position={[5, 9, 4]}
         intensity={2.1}
@@ -34,7 +34,7 @@ export function Scene() {
       />
       {/* cool rim */}
       <pointLight position={[-6, 4, -5]} intensity={40} color="#3b82f6" distance={25} />
-      <Environment preset="warehouse" environmentIntensity={0.25} />
+      <Environment preset="warehouse" environmentIntensity={0.4} />
 
       <Physics gravity={[0, -9.81, 0]}>
         <RobotArm />
@@ -48,17 +48,17 @@ export function Scene() {
       {/* dark floor + blue grid */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.08, 0]} receiveShadow>
         <planeGeometry args={[60, 60]} />
-        <meshStandardMaterial color="#0c1016" metalness={0.2} roughness={0.9} />
+        <meshStandardMaterial color="#1a212b" metalness={0.2} roughness={0.9} />
       </mesh>
       <Grid
         position={[0, -0.06, 0]}
         args={[60, 60]}
         cellSize={0.6}
         cellThickness={0.6}
-        cellColor="#1b2740"
+        cellColor="#2c3c56"
         sectionSize={3}
         sectionThickness={1}
-        sectionColor="#2b6fff"
+        sectionColor="#3b82f6"
         fadeDistance={26}
         fadeStrength={1.5}
         infiniteGrid

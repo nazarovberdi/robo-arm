@@ -1,13 +1,13 @@
 :root {
-  --bg: #070a0f;
-  --panel: #0f141b;
-  --panel-2: #131922;
-  --panel-3: #1a212c;
-  --border: #1e2530;
-  --border-2: #2a3340;
-  --text: #e6eaf0;
-  --text-dim: #8a94a3;
-  --text-dim-2: #5c6573;
+  --bg: #121821;
+  --panel: #1b2330;
+  --panel-2: #212b3a;
+  --panel-3: #2a3546;
+  --border: #2e3a4a;
+  --border-2: #3c4a5d;
+  --text: #eef1f6;
+  --text-dim: #9aa6b6;
+  --text-dim-2: #6b7585;
   --blue: #2b7fff;
   --blue-soft: #3b82f6;
   --green: #22c55e;
@@ -75,7 +75,7 @@ body {
   display: grid;
   place-items: center;
   border-radius: 9px;
-  background: #15202f;
+  background: #223145;
   color: var(--blue);
 }
 .logo .blue {
@@ -192,7 +192,7 @@ body {
   flex-direction: column;
   min-width: 0;
   height: 100vh;
-  background: radial-gradient(120% 100% at 50% 0%, #0b1016 0%, #070a0f 60%);
+  background: radial-gradient(120% 100% at 50% 0%, #1a2330 0%, #121821 60%);
 }
 
 .topbar {
@@ -320,13 +320,13 @@ body {
   border-radius: 16px;
   overflow: hidden;
   border: 1px solid var(--border);
-  background: #0a0d12;
+  background: #161c25;
 }
 .tray-tag {
   position: absolute;
   top: 16px;
   border: 1px solid var(--border-2);
-  background: rgba(10, 13, 18, 0.7);
+  background: rgba(22, 28, 37, 0.7);
   backdrop-filter: blur(6px);
   border-radius: 8px;
   padding: 6px 14px;

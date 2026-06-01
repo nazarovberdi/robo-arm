@@ -215,7 +215,7 @@ export function RobotArm() {
     // finger gap from grip value (open ~0.45 clears the objects; closed ~0.12),
     // clamped so fingers rest on the held/candidate object's surface rather than
     // penetrating it.
-    let gap = 0.12 + 0.33 * grip.current
+    let gap = 0.12 + 0.30 * grip.current
     const onId = rig.heldObjectId ?? rig.candidateId
     if (onId) {
       const w = SHAPE_BY_ID[onId]?.grasp.width ?? 0
@@ -239,10 +239,10 @@ export function RobotArm() {
   return (
     <>
       {/* kinematic finger colliders (driven each frame to match the IK fingers) */}
-      <RigidBody ref={bodyL} type="kinematicPosition" colliders={false} userData={{ finger: 'L' }}>
+      <RigidBody ref={bodyL} type="kinematicPosition" colliders={false} ccd userData={{ finger: 'L' }}>
         <CuboidCollider args={[0.035, ARM.gripLen / 2, 0.085]} />
       </RigidBody>
-      <RigidBody ref={bodyR} type="kinematicPosition" colliders={false} userData={{ finger: 'R' }}>
+      <RigidBody ref={bodyR} type="kinematicPosition" colliders={false} ccd userData={{ finger: 'R' }}>
         <CuboidCollider args={[0.035, ARM.gripLen / 2, 0.085]} />
       </RigidBody>
 
@@ -285,16 +285,28 @@ export function RobotArm() {
 
                 <group ref={wrist} position={[0, ARM.L2, 0]}>
                   <Knuckle mats={mats} small />
-                  <mesh position={[0, 0.1, 0]} castShadow material={mats.joint}>
-                    <boxGeometry args={[0.26, 0.12, 0.2]} />
+                  {/* gripper housing + wide slide rail: the fingers ride the rail,
+                      so they always read as mounted to the gripper (no floating gap
+                      when open). Cosmetic only — no colliders here. */}
+                  <mesh position={[0, 0.06, 0]} castShadow material={mats.joint}>
+                    <boxGeometry args={[0.32, 0.16, 0.24]} />
+                  </mesh>
+                  <mesh position={[0, 0.15, 0]} castShadow material={mats.bodyDark}>
+                    <boxGeometry args={[0.98, 0.1, 0.2]} />
                   </mesh>
                   <group ref={fingerL} position={[-0.12, 0.16, 0]}>
+                    <mesh position={[0, 0.02, 0]} castShadow material={mats.joint}>
+                      <boxGeometry args={[0.12, 0.14, 0.18]} />
+                    </mesh>
                     <mesh position={[0, ARM.gripLen / 2, 0]} castShadow material={mats.finger}>
                       <boxGeometry args={[0.06, ARM.gripLen, 0.16]} />
                     </mesh>
                     <object3D ref={markerL} position={[0, ARM.gripLen / 2, 0]} />
                   </group>
                   <group ref={fingerR} position={[0.12, 0.16, 0]}>
+                    <mesh position={[0, 0.02, 0]} castShadow material={mats.joint}>
+                      <boxGeometry args={[0.12, 0.14, 0.18]} />
+                    </mesh>
                     <mesh position={[0, ARM.gripLen / 2, 0]} castShadow material={mats.finger}>
                       <boxGeometry args={[0.06, ARM.gripLen, 0.16]} />
                     </mesh>
